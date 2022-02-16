@@ -27,9 +27,9 @@ import os
 import socket
 import posixpath
 
-from adb import adb_protocol
-from adb import common
-from adb import filesync_protocol
+import adb_protocol
+import common
+import filesync_protocol
 
 # From adb.h
 CLASS = 0xFF
@@ -40,7 +40,7 @@ DeviceIsAvailable = common.InterfaceMatcher(CLASS, SUBCLASS, PROTOCOL)
 
 try:
     # Imported locally to keep compatibility with previous code.
-    from adb.sign_cryptography import CryptographySigner
+    from sign_cryptography import CryptographySigner
 except ImportError:
     # Ignore this error when cryptography is not installed, there are other options.
     pass

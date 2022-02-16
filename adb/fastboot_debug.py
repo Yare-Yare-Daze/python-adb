@@ -24,8 +24,8 @@ import inspect
 import logging
 import sys
 
-from adb import common_cli
-from adb import fastboot
+import common_cli
+import fastboot
 
 try:
     import progressbar
@@ -86,6 +86,8 @@ def main():
         subparsers, parents, fastboot.FastbootCommands.Oem)
     common_cli.MakeSubparser(
         subparsers, parents, fastboot.FastbootCommands.Reboot)
+    common_cli.MakeSubparser(
+        subparsers, parents, fastboot.FastbootCommands.RebootBootloader)
 
     if len(sys.argv) == 1:
         parser.print_help()

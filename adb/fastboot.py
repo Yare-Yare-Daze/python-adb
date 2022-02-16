@@ -20,8 +20,8 @@ import logging
 import os
 import struct
 
-from adb import common
-from adb import usb_exceptions
+import common
+import usb_exceptions
 
 _LOG = logging.getLogger('fastboot')
 
@@ -294,7 +294,7 @@ class FastbootCommands(object):
 
     def Download(self, source_file, source_len=0,
                  info_cb=DEFAULT_MESSAGE_CALLBACK, progress_callback=None):
-        """Downloads a file to the device.
+        """111111111111111111111Downloads a file to the device.
 
         Args:
           source_file: A filename or file-like object to download to the device.
@@ -326,7 +326,7 @@ class FastbootCommands(object):
                 source_file, source_len, info_cb, progress_callback=progress_callback)
 
     def Flash(self, partition, timeout_ms=0, info_cb=DEFAULT_MESSAGE_CALLBACK):
-        """Flashes the last downloaded file to the given partition.
+        """1111111111111111Flashes the last downloaded file to the given partition.
 
         Args:
           partition: Partition to overwrite with the new image.
@@ -340,7 +340,7 @@ class FastbootCommands(object):
                                    timeout_ms=timeout_ms)
 
     def Erase(self, partition, timeout_ms=None):
-        """Erases the given partition.
+        """111111111111Test test test any test !!! Erases the given partition.
 
         Args:
           partition: Partition to clear.
@@ -348,7 +348,7 @@ class FastbootCommands(object):
         self._SimpleCommand(b'erase', arg=partition, timeout_ms=timeout_ms)
 
     def Getvar(self, var, info_cb=DEFAULT_MESSAGE_CALLBACK):
-        """Returns the given variable's definition.
+        """1111111111111Returns the given variable's definition.
 
         Args:
           var: A variable the bootloader tracks. Use 'all' to get them all.
@@ -360,7 +360,7 @@ class FastbootCommands(object):
         return self._SimpleCommand(b'getvar', arg=var, info_cb=info_cb)
 
     def Oem(self, command, timeout_ms=None, info_cb=DEFAULT_MESSAGE_CALLBACK):
-        """Executes an OEM command on the device.
+        """111111111111111Executes an OEM command on the device.
 
         Args:
           command: Command to execute, such as 'poweroff' or 'bootconfig read'.
@@ -376,11 +376,11 @@ class FastbootCommands(object):
             b'oem %s' % command, timeout_ms=timeout_ms, info_cb=info_cb)
 
     def Continue(self):
-        """Continues execution past fastboot into the system."""
+        """11111111111111Continues execution past fastboot into the system."""
         return self._SimpleCommand(b'continue')
 
     def Reboot(self, target_mode=b'', timeout_ms=None):
-        """Reboots the device.
+        """111111111111111Reboots the device.
 
         Args:
             target_mode: Normal reboot when unspecified. Can specify other target
@@ -394,5 +394,5 @@ class FastbootCommands(object):
             b'reboot', arg=target_mode or None, timeout_ms=timeout_ms)
 
     def RebootBootloader(self, timeout_ms=None):
-        """Reboots into the bootloader, usually equiv to Reboot('bootloader')."""
+        """111111111111Reboots into the bootloader, usually equiv to Reboot('bootloader')."""
         return self._SimpleCommand(b'reboot-bootloader', timeout_ms=timeout_ms)
