@@ -1,7 +1,7 @@
 from random import random, randrange
 import sys
 import io
-from adb import fastboot
+import fastboot
 import adb_commands
 import common
 from time import sleep
@@ -54,11 +54,12 @@ def getHelp():
     return strHelp
 
 def RandomGeneratePucket():
-    cmdList = ['devices', 'continue', 'download', 'erase', 'flash', 'getvar', 'oem', 'reboot', 'reboot-bootloader', 'flashall']
+    cmdList = ['continue', 'download', 'erase', 'flash', 'getvar', 'oem', 'reboot', 'reboot-bootloader', 'flashall']
     getvarArgs = ['all', 'version', 'serialno', 'product', 'platform', 'modelid', 'cidnum', 'security', 'boot-mode', 'build-mode', 'version-bootloader', 'cid']
     flashArgs = ['userdata', 'system', 'boot', 'radio', 'recovery']
     oemArgs = ['unlock', 'unlock-go', 'lock', 'writecid', 'writeimei', 'get_identifier_token', 'enable-charger-screen', 'disable-charger-screen', 'off-mode-charge']
-    cmd = cmdList[randrange(0, len(cmdList))]
+    #cmd = cmdList[randrange(0, len(cmdList))]
+    cmd = 'getvar'
     args = ''
     if cmd == 'getvar':
         args = getvarArgs[randrange(0, len(getvarArgs))]
@@ -89,31 +90,41 @@ def GeneratePucketFromInput():
     return fstcmd
 
 def main():
-    puck = GeneratePucketFromInput()
+    # pucket = GeneratePucketFromInput()
+    # if pucket.GetCommand() == 'help' or pucket.GetCommand() == 'h':
+    #     print(getHelp())
+    #     return
     dev = fastboot.FastbootCommands()
+
     for device in dev.Devices():
-        print(device.serial_number)
-        print(device.port_path)
-        print(device.usb_info)
-        print(puck.GetBufferedCommand())
+        print('Serial number: %s' % device.serial_number)
+        print('Port puth: %s' %device.port_path)
+        print('Usb_info: %s' %device.usb_info)
+
         device.Open()
         print('Opened USB device!')
-        device.FlushBuffers()
-        print('FlushBuffered')
+
+        # device.FlushBuffers()
+        # print('FlushBuffered')
+
         protocol = fastboot.FastbootProtocol(device)
         print('Created fastboot.FastbootProtocol')
-        protocol._Write(puck.GetBufferedCommand(), len(puck.GetCommand()))
-        print('Successfully send data')
-        protocol._AcceptResponses(b'OKAY', info_cb)
-        print('Accepted response')
-    """while True:
-        sleep(2)
-        pucket = RandomGeneratePucket()
-        print('Pucket class: %s' % pucket)
-        print('Pucket command: %s' % pucket.GetCommand())
-        print('Pucket command bytes: %s' % pucket.GetCommandBytes())
-        print('Pucket BytesIO: %s' % pucket.GetBufferedCommand())
-        print('Pucket BytesIO.getbuffer(): %s' % pucket.GetBufferedCommand().getbuffer())"""
+        
+        while True:
+            sleep(5)
+            pucket = RandomGeneratePucket()
+            # print('Pucket class: %s' % pucket)
+            # print('Pucket command: %s' % pucket.GetCommand())
+            # print('Pucket command bytes: %s' % pucket.GetCommandBytes())
+            # print('Pucket BytesIO: %s' % pucket.GetBufferedCommand())
+            # print('Pucket BytesIO.getbuffer(): %s' % pucket.GetBufferedCommand().getbuffer())
+
+            protocol._Write(pucket.GetBufferedCommand(), len(pucket.GetCommand()))
+            print('Successfully send data')
+
+            protocol._AcceptResponses(b'OKAY', info_cb)
+            print(protocol.GetLastResponce())
+            print('Accepted response')
 
 if __name__ == '__main__':
     sys.exit(main())

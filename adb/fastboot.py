@@ -71,6 +71,7 @@ class FastbootProtocol(object):
         """
         self.usb = usb
         self.chunk_kb = chunk_kb
+        self.lastResponce = b''
 
     @property
     def usb_handle(self):
@@ -155,6 +156,7 @@ class FastbootProtocol(object):
         """
         while True:
             response = self.usb.BulkRead(64, timeout_ms=timeout_ms)
+            self.lastResponce = response
             header = bytes(response[:4])
             remaining = bytes(response[4:])
 
@@ -173,6 +175,9 @@ class FastbootProtocol(object):
             else:
                 raise FastbootInvalidResponse(
                     'Got unknown header %s and response %s', header, remaining)
+
+    def GetLastResponce(self):
+        return self.lastResponce
 
     def _HandleProgress(self, total, progress_callback):
         """Calls the callback with the current progress and total ."""
