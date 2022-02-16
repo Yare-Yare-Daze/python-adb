@@ -7,8 +7,8 @@ import sys
 import time
 from mock import mock
 
-from adb.common import TcpHandle, UsbHandle
-from adb.usb_exceptions import TcpTimeoutException
+from common import TcpHandle, UsbHandle
+from usb_exceptions import TcpTimeoutException
 
 PRINTABLE_DATA = set(string.printable) - set(string.whitespace)
 

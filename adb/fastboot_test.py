@@ -20,7 +20,7 @@ import tempfile
 import unittest
 
 import common_stub
-from adb import fastboot
+import fastboot
 
 
 class FastbootTest(unittest.TestCase):

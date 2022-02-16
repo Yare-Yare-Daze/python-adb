@@ -1,11 +1,13 @@
 from random import random, randrange
 import sys
 import io
-import fastboot
+from adb import fastboot
+import adb_commands
 import common
 from time import sleep
 
 MAX_SIZE_CMD = 64
+info_cb = fastboot.DEFAULT_MESSAGE_CALLBACK
 
 class FastbootCommand(object):
     """Class commands for fastboot"""
@@ -87,14 +89,31 @@ def GeneratePucketFromInput():
     return fstcmd
 
 def main():
-    while True:
+    puck = GeneratePucketFromInput()
+    dev = fastboot.FastbootCommands()
+    for device in dev.Devices():
+        print(device.serial_number)
+        print(device.port_path)
+        print(device.usb_info)
+        print(puck.GetBufferedCommand())
+        device.Open()
+        print('Opened USB device!')
+        device.FlushBuffers()
+        print('FlushBuffered')
+        protocol = fastboot.FastbootProtocol(device)
+        print('Created fastboot.FastbootProtocol')
+        protocol._Write(puck.GetBufferedCommand(), len(puck.GetCommand()))
+        print('Successfully send data')
+        protocol._AcceptResponses(b'OKAY', info_cb)
+        print('Accepted response')
+    """while True:
         sleep(2)
         pucket = RandomGeneratePucket()
         print('Pucket class: %s' % pucket)
         print('Pucket command: %s' % pucket.GetCommand())
         print('Pucket command bytes: %s' % pucket.GetCommandBytes())
         print('Pucket BytesIO: %s' % pucket.GetBufferedCommand())
-        print('Pucket BytesIO.getbuffer(): %s' % pucket.GetBufferedCommand().getbuffer())
+        print('Pucket BytesIO.getbuffer(): %s' % pucket.GetBufferedCommand().getbuffer())"""
 
 if __name__ == '__main__':
     sys.exit(main())

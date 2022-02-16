@@ -20,10 +20,10 @@ import unittest
 from mock import mock
 
 
-from adb import common
-from adb import adb_commands
-from adb import adb_protocol
-from adb.usb_exceptions import TcpTimeoutException, DeviceNotFoundError
+import common
+import adb_commands
+import adb_protocol
+from usb_exceptions import TcpTimeoutException, DeviceNotFoundError
 import common_stub
 
 
