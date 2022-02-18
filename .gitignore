@@ -7,3 +7,5 @@ adb.egg-info/
 /fastboot.zip
 .idea/
 *.DS_Store*
+/boofuzz-results/
+/adb/boofuzz-results/
