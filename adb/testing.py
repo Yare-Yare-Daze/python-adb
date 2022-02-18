@@ -3,17 +3,12 @@ import sys
 import io
 import string
 
-import random
-import struct
-
 from past.builtins import xrange
 
 from boofuzz import helpers
 
 import fastboot
 from boofuzz import *
-import adb_commands
-import common
 from time import sleep
 
 MAX_SIZE_CMD = 64
@@ -64,15 +59,58 @@ def getHelp():
     return strHelp
 
 def RandomGeneratePucket():
-    cmdList = ['continue', 'download', 'erase', 'flash', 'getvar', 'oem', 'reboot', 'reboot-bootloader', 'flashall']
-    getvarArgs = ['all', 'version', 'serialno', 'product', 'platform', 'modelid', 'cidnum', 'security', 'boot-mode', 'build-mode', 'version-bootloader', 'cid']
-    flashArgs = ['userdata', 'system', 'boot', 'radio', 'recovery']
-    oemArgs = ['unlock', 'unlock-go', 'lock', 'writecid', 'writeimei', 'get_identifier_token', 'enable-charger-screen', 'disable-charger-screen', 'off-mode-charge']
+    cmdList = [
+        'continue', 
+        'download', 
+        'erase', 
+        'flash', 
+        'getvar', 
+        'oem', 
+        'reboot', 
+        'reboot-bootloader', 
+        'flashall'
+        ]
+    getvarArgs = [
+        'all', 
+        'version', 
+        'serialno', 
+        'product', 
+        'token',
+        'battery-soc-ok', 
+        'battery-voltage', 
+        'secure',
+        'variant',
+        'off-mode-charge', 
+        'charger-screen-enabled', 
+        'max-download-size', 
+        'crc',
+        'mmcphase',
+        'karnel',
+        ]
+    flashArgs = [
+        'userdata', 
+        'system', 
+        'boot', 
+        'radio', 
+        'recovery'
+        ]
+    oemArgs = [
+        'unlock', 
+        'unlock-go', 
+        'lock', 
+        'writecid', 
+        'writeimei', 
+        'get_identifier_token', 
+        'enable-charger-screen', 
+        'disable-charger-screen', 
+        'off-mode-charge'
+        ]
     #cmd = cmdList[randrange(0, len(cmdList))]
-    cmd = 'reboot'
+    cmd = 'getvar'
     args = ''
     if cmd == 'getvar':
         args = getvarArgs[randrange(0, len(getvarArgs))]
+        # args = list[1].get_value()
     elif cmd == 'oem':
         args = oemArgs[randrange(0, len(oemArgs))]
     elif cmd == 'flash':
@@ -137,13 +175,15 @@ class RandomStringRange(Fuzzable):
         return list
 
     def __init__(
-    self, name=None, default_value="", start_str='aaa', final_str='zzz', max_mutations=100, *args, **kwargs
+    self, name=None, default_value="", start_str='aaa', final_str='zzz', max_mutations=100, expected_string='aaa', *args, **kwargs
     ):
         default_value = helpers.str_to_bytes(default_value)
 
         super(RandomStringRange, self).__init__(name=name, default_value=default_value, *args, **kwargs)
 
         self.list = self.CreateStringsListRange(start_str, final_str, len(start_str), max_mutations)
+        self.expected_string = expected_string
+        self.amount_mutation = 0
         self.max_mutations = max_mutations
         self.start_str = start_str
         self.final_str = final_str
@@ -158,14 +198,13 @@ class RandomStringRange(Fuzzable):
         Yields:
             str: Mutations
         """
-
-        local_random = random.Random(0)  # We want constant random numbers to generate reproducible test cases
-
         for i in range(0, self.get_num_mutations()):
-            # select a random length for this string.
-
             value = b""
+            self.amount_mutation += 1
             value += bytes(self.list[i], encoding="utf-8")
+            if self.list[i] == self.expected_string:
+                print('Did this')
+                return
             yield value
 
 
@@ -192,33 +231,31 @@ def main():
     #     return
     dev = fastboot.FastbootCommands()
 
+
     req = Request("Mutatuion-Getvar",children=(
-        Block("Request-Line", children=(
+            Block("Request-Line", children=(
             #Group("Getvar-Args", values=l),
             #FromFile("TestFromFile", 'none', filename="C:/Users/EremeevMikhail/Documents/python-adb/adb/file.txt")
-            RandomStringRange("RSRTEST", default_value='none', start_str='aaa', final_str='zzz', max_mutations=10000)
+            RandomStringRange("RSRTEST", default_value='none', start_str='aaa', final_str='zzz', max_mutations=3000, expected_string='crc'),
             #RandomData(name="TEST", default_value='AAA', min_length=3, max_length=3),
-
+            ))
         ))
-    ))
-
-    count = 0
-    index = 0
-
-    for mut in req.get_mutations():
-        print(mut)
-        for mutt in mut:
-            if mutt.value == b"all":
-                count += 1
-                index = mutt.index
-                break 
-    
-    print(count)
-    print('Last Index: %s' % index)
-
-    print(req.get_num_mutations())
 
     for device in dev.Devices():
+
+    # count = 0
+    # index = 0
+
+    # for mut in req.get_mutations():
+    #     print(mut)
+    #     for mutt in mut:
+    #         if mutt.value == b"all" or mutt.value == b"cid":
+    #             count += 1
+    #             req.stop_mutations()
+    #             index = mutt.index
+    #     if count > 0:
+    #         break  
+
         print('Serial number: %s' % device.serial_number)
         print('Port puth: %s' %device.port_path)
         print('Usb_info: %s' %device.usb_info)
@@ -231,22 +268,33 @@ def main():
 
         protocol = fastboot.FastbootProtocol(device)
         print('Created class object FastbootProtocol')
-        
-        while True:
-            sleep(5)
-            pucket = RandomGeneratePucket()
-            # print('Pucket class: %s' % pucket)
-            # print('Pucket command: %s' % pucket.GetCommand())
-            # print('Pucket command bytes: %s' % pucket.GetCommandBytes())
-            # print('Pucket BytesIO: %s' % pucket.GetBufferedCommand())
-            # print('Pucket BytesIO.getbuffer(): %s' % pucket.GetBufferedCommand().getbuffer())
+        counter = 0
+        mutatuions = 0
+        # while True:
+        for mut in req.get_mutations():
+            for mutt in mut:
+                mutatuions += 1
+                # sleep(1)
+                pucket = FastbootCommand('getvar', mutt.value.decode('utf-8'))
+                pucket.CreatePucket()
+                #print('Pucket class: %s' % pucket)
+                print('Pucket command: %s' % pucket.GetCommand())
+                print('Pucket command bytes: %s' % pucket.GetCommandBytes())
+                #print('Pucket BytesIO: %s' % pucket.GetBufferedCommand())
+                #print('Pucket BytesIO.getbuffer(): %s' % pucket.GetBufferedCommand().getbuffer())
 
-            protocol._Write(pucket.GetBufferedCommand(), len(pucket.GetCommand()))
-            print('Successfully send data')
+                protocol._Write(pucket.GetBufferedCommand(), len(pucket.GetCommand()))
+                print('Successfully send data')
 
-            protocol._AcceptResponses(b'OKAY', info_cb)
-            print(protocol.GetLastResponce())
-            print('Accepted response')
+                protocol._AcceptResponses(b'OKAY', info_cb)
+                print(protocol.GetLastResponce())
+                print('Accepted response')
+                if mutt.value == b"all" or mutt.value == b"crc":
+                    counter += 1
+                    return
+                print(counter)
+                print()
+        print('Amount of mutations: %s' % mutatuions)
 
 if __name__ == '__main__':
     sys.exit(main())
