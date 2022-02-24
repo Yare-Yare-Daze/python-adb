@@ -171,7 +171,8 @@ class FastbootProtocol(object):
                 return remaining
             elif header == b'FAIL':
                 info_cb(FastbootMessage(remaining, header))
-                raise FastbootRemoteFailure('FAIL: %s', remaining)
+                return remaining
+                #raise FastbootRemoteFailure('FAIL: %s', remaining)
             else:
                 raise FastbootInvalidResponse(
                     'Got unknown header %s and response %s', header, remaining)
