@@ -1,4 +1,5 @@
-from random import random, randrange
+from operator import ilshift
+from random import Random, random, randrange
 import sys
 import io
 import string
@@ -69,8 +70,7 @@ def RandomGeneratePucket():
         'reboot-bootloader', 
         'flashall'
         ]
-    getvarArgs = [
-        'all', 
+    getvarArgs = [ 
         'version', 
         'serialno', 
         'product', 
@@ -84,7 +84,6 @@ def RandomGeneratePucket():
         'max-download-size', 
         'crc',
         'mmcphase',
-        'karnel',
         ]
     flashArgs = [
         'userdata', 
@@ -137,14 +136,20 @@ def GeneratePucketFromInput():
 
 class RandomStringRange(Fuzzable):
     @staticmethod
-    def CreateStringsListRange(start, final, length, amount_iterations):
+    def CreateStringsListRange(start, final, amount_iterations):
+        random = Random()
         list = []
         chr_start = ''
         chr_final = ''
         str = ''
+        min_len = len(start)
+        max_len = len(final)
         for i in range(amount_iterations+1):
-            for j in range(length):
-                chr_start = start[j]
+            for j in range(0, random.randint(min_len, max_len)):
+                if j >= min_len:
+                    chr_start = string.ascii_lowercase[0]
+                else:
+                    chr_start = start[j]
                 chr_start_num = ord(chr_start)
                 chr_final = final[j]
                 chr_final_num = ord(chr_final)
@@ -158,15 +163,15 @@ class RandomStringRange(Fuzzable):
         return list
 
     def __init__(
-    self, name=None, default_value="", start_str='aaa', final_str='zzz', max_mutations=100, expected_string='aaa', *args, **kwargs
+    self, name=None, default_value="", start_str='aaa', final_str='zzz', max_mutations=100, expected_string_list=['aaa'], *args, **kwargs
     ):
         default_value = helpers.str_to_bytes(default_value)
 
         super(RandomStringRange, self).__init__(name=name, default_value=default_value, *args, **kwargs)
 
-        self.list = self.CreateStringsListRange(start_str, final_str, len(start_str), max_mutations)
+        self.list_mutations = self.CreateStringsListRange(start_str, final_str, max_mutations)
         #self.counter_expected_string = 0
-        self.expected_string = expected_string
+        self.expected_string_list = expected_string_list
         self.amount_mutation = 0
         self.max_mutations = max_mutations
         self.start_str = start_str
@@ -185,12 +190,13 @@ class RandomStringRange(Fuzzable):
         for i in range(0, self.get_num_mutations()):
             value = b""
             self.amount_mutation += 1
-            value += bytes(self.list[i], encoding="utf-8")
+            value += bytes(self.list_mutations[i], encoding="utf-8")
             yield value
-            if self.list[i] == self.expected_string:
-                #self.counter_expected_string += 1
-                print('Finded expected string: %s' % self.expected_string)
-                return
+            for j in range(0, len(self.expected_string_list)):
+                if self.list_mutations[i] == self.expected_string_list[j]:
+                    #self.counter_expected_string += 1
+                    print('Finded expected string: %s' % self.expected_string_list[j])
+                    self.stop_mutations()
 
 
     def encode(self, value, mutation_context):
@@ -214,13 +220,28 @@ def main():
     # if pucket.GetCommand() == 'help' or pucket.GetCommand() == 'h':
     #     print(getHelp())
     #     return
-
+    
     dev = fastboot.FastbootCommands()
-    req = Request("Mutatuion-Getvar",children=(
+    req = Request("Mutation-Getvar",children=(
             Block("Request-Line", children=(
             #Group("Getvar-Args", values=l),
-            #RandomStringRange("RSRTEST", default_value='none', start_str='aaa:aaa', final_str='zzz:zzz', max_mutations=100, expected_string='crc'),
-            RandomStringRange("RSRTEST1", default_value='none', start_str='getvaa:ccc', final_str='getvaz:crc', max_mutations=1000, expected_string='getvar:crc'),
+            #RandomStringRange("RSRTEST", default_value='none', start_str='aaa', final_str='zzz', max_mutations=100, expected_string_list=['crc']),
+            RandomStringRange(
+                "RSRTEST", 
+                default_value='none', 
+                start_str='getvar:token', 
+                final_str='getvas:serurl', 
+                max_mutations=2000, 
+                expected_string_list=['getvar:token', 'getvar:secure', 'getvar:kernel']
+                ),
+            # RandomStringRange(
+            #     "RSRTEST1", 
+            #     default_value='none', 
+            #     start_str='reboot', 
+            #     final_str='reboot', 
+            #     max_mutations=1000, 
+            #     expected_string_list=['reboot', 'getvar:version', 'getvar:product']
+            #     ),
             ))
         ))
 
@@ -244,28 +265,30 @@ def main():
         protocol = fastboot.FastbootProtocol(device)
         print('Created class object FastbootProtocol')
 
-        mutatuions = 0
+        mutations = 0
+        
 
-        for mut in req.get_mutations():
+        for mut in req.mutations('none'):
             for mutt in mut:
-                mutatuions = mutt.index
+                mutations = mutt.index+1
                 tuple = mutt.value.partition(b':')
                 #pucket = FastbootCommand(mutt.value.decode('utf-8'))
                 #pucket = FastbootCommand('getvar', mutt.value.decode('utf-8'))
                 pucket = FastbootCommand(tuple[0].decode('utf-8'), tuple[2].decode('utf-8'))
                 pucket.CreatePucket()
-
+                
                 print('Pucket command bytes: %s' % pucket.GetCommandBytes())
 
                 protocol._Write(pucket.GetBufferedCommand(), len(pucket.GetCommand()))
-                print('Successfully send data')
+                #print('Successfully send data')
 
                 protocol._AcceptResponses(b'OKAY', info_cb)
 
                 print(protocol.GetLastResponce())
-                print('Accepted response')
+                #print('Accepted response')
 
-        print('Amount of mutations: %s' % mutatuions)
+        print('Amount of mutations: %s' % mutations)
+        
 
 if __name__ == '__main__':
     sys.exit(main())
