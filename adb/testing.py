@@ -14,10 +14,10 @@ from time import sleep
 
 MAX_SIZE_CMD = 64
 info_cb = fastboot.DEFAULT_MESSAGE_CALLBACK
+successfull_mutations_list = []
 
 class FastbootCommand(object):
     """Class commands for fastboot"""
-
     def __init__(self, strCmd, args = ''):
         self._isCmdOversized = False
         self._strCommand = strCmd + args
@@ -48,16 +48,6 @@ class FastbootCommand(object):
         if not self._isCmdOversized:
             return self._strBufferedCommand
 
-def getHelp():
-    strHelp = "Fastboot Commands: \n"
-    strHelp += "devices, continue, download, erase, flash, getvar, oem, reboot, reboot-bootloader, flashall\n"
-    strHelp += "Args: \n"
-    strHelp += "For oem: unlock, unlock-go, lock, writecid, writeimei, get_identifier_token, enable-charger-screen, disable-charger-screen, off-mode-charge\n"
-    strHelp += "For flash: userdata, system, boot, radio, recovery"
-    strHelp += "For getvar: all, version, serialno, product\n"
-
-    return strHelp
-
 def RandomGeneratePucket():
     cmdList = [
         'continue', 
@@ -83,7 +73,7 @@ def RandomGeneratePucket():
         'charger-screen-enabled', 
         'max-download-size', 
         'crc',
-        'mmcphase',
+        'mmcphase'
         ]
     flashArgs = [
         'userdata', 
@@ -93,18 +83,20 @@ def RandomGeneratePucket():
         'recovery'
         ]
     oemArgs = [
-        'unlock', 
-        'unlock-go', 
-        'lock', 
-        'writecid', 
-        'writeimei', 
-        'get_identifier_token', 
+        'unlock',  
+        'lock',  
         'enable-charger-screen', 
         'disable-charger-screen', 
-        'off-mode-charge'
+        'off-mode-charge',
+        'select-display-panel',
+        'device-info',
+        'poweroff',
+        'reboot-recovery',
+        'lkmsg',
+        'lpmsg',
+        'edl'
         ]
-    #cmd = cmdList[randrange(0, len(cmdList))]
-    cmd = 'getvar'
+    cmd = cmdList[randrange(0, len(cmdList))]
     args = ''
     if cmd == 'getvar':
         args = getvarArgs[randrange(0, len(getvarArgs))]
@@ -121,9 +113,6 @@ def GeneratePucketFromInput():
     """Генерирует пакеты из команд, введенных с консоли."""
     print('Input command (help or h): ')
     stringCommand = input()
-    if stringCommand == 'help' or stringCommand =='h':
-        print(getHelp())
-        return 
     print('(Optional)Input arguments: ')
     stringArguments = input()
 
@@ -196,6 +185,11 @@ class RandomStringRange(Fuzzable):
                 if self.list_mutations[i] == self.expected_string_list[j]:
                     #self.counter_expected_string += 1
                     print('Finded expected string: %s' % self.expected_string_list[j])
+                    print('Qualified name: %s' % self.qualified_name)
+                    print('Stopped on %s index' % i)
+                    successfull_mutations_list.append(self.list_mutations[i])
+                    successfull_mutations_list.append('Index: %s' % i)
+                    successfull_mutations_list.append('Index: %s' % self.qualified_name)
                     self.stop_mutations()
 
 
@@ -227,21 +221,29 @@ def main():
             #Group("Getvar-Args", values=l),
             #RandomStringRange("RSRTEST", default_value='none', start_str='aaa', final_str='zzz', max_mutations=100, expected_string_list=['crc']),
             RandomStringRange(
-                "RSRTEST", 
+                "RSRTest1", 
                 default_value='none', 
-                start_str='getvar:token', 
-                final_str='getvas:serurl', 
+                start_str='oem device-in', 
+                final_str='oem device-info', 
                 max_mutations=2000, 
-                expected_string_list=['getvar:token', 'getvar:secure', 'getvar:kernel']
+                expected_string_list=['oem device-info']
                 ),
-            # RandomStringRange(
-            #     "RSRTEST1", 
-            #     default_value='none', 
-            #     start_str='reboot', 
-            #     final_str='reboot', 
-            #     max_mutations=1000, 
-            #     expected_string_list=['reboot', 'getvar:version', 'getvar:product']
-            #     ),
+            RandomStringRange(
+                "RSRTest2", 
+                default_value='none', 
+                start_str='getvar:varaaaa', 
+                final_str='getvar:product', 
+                max_mutations=2000, 
+                expected_string_list=['getvar:version', 'getvar:variant', 'getvar:product']
+                ),
+            RandomStringRange(
+                "RSRTest3",
+                default_value='none',
+                start_str='reb',
+                final_str='reboot',
+                max_mutations=1000,
+                expected_string_list=['reboot']
+            )
             ))
         ))
 
@@ -249,7 +251,7 @@ def main():
     #     print(mut)
     #     for mutt in mut:
     #         tuple = mutt.value.partition(b':')
-
+    
     for device in dev.Devices():
 
         print('Serial number: %s' % device.serial_number)
@@ -265,29 +267,30 @@ def main():
         protocol = fastboot.FastbootProtocol(device)
         print('Created class object FastbootProtocol')
 
-        mutations = 0
-        
+        mutations_all = 0
 
         for mut in req.mutations('none'):
+            mutations_all += 1
+
             for mutt in mut:
-                mutations = mutt.index+1
                 tuple = mutt.value.partition(b':')
+                pucket = FastbootCommand(tuple[0].decode('utf-8'), tuple[2].decode('utf-8'))
                 #pucket = FastbootCommand(mutt.value.decode('utf-8'))
                 #pucket = FastbootCommand('getvar', mutt.value.decode('utf-8'))
-                pucket = FastbootCommand(tuple[0].decode('utf-8'), tuple[2].decode('utf-8'))
                 pucket.CreatePucket()
                 
                 print('Pucket command bytes: %s' % pucket.GetCommandBytes())
 
                 protocol._Write(pucket.GetBufferedCommand(), len(pucket.GetCommand()))
-                #print('Successfully send data')
-
-                protocol._AcceptResponses(b'OKAY', info_cb)
+                
+                protocol.HandleSimpleResponses()
+                #protocol._AcceptResponses(b'OKAY', info_cb)
 
                 print(protocol.GetLastResponce())
                 #print('Accepted response')
 
-        print('Amount of mutations: %s' % mutations)
+        print('Amount of all mutatuions: %s' % mutations_all)
+        print(successfull_mutations_list)
         
 
 if __name__ == '__main__':
