@@ -3,12 +3,14 @@ from random import Random, random, randrange
 import sys
 import io
 import string
+import time
 
 from past.builtins import xrange
 
 from boofuzz import helpers
 
 import fastboot
+import usb_exceptions
 from boofuzz import *
 from time import sleep
 
@@ -176,6 +178,7 @@ class RandomStringRange(Fuzzable):
         Yields:
             str: Mutations
         """
+        self.time_mutation = round(time.time(), 3)
         for i in range(0, self.get_num_mutations()):
             value = b""
             self.amount_mutation += 1
@@ -187,11 +190,13 @@ class RandomStringRange(Fuzzable):
                     print('Finded expected string: %s' % self.expected_string_list[j])
                     print('Qualified name: %s' % self.qualified_name)
                     print('Stopped on %s index' % i)
+                    self.time_mutation = round(time.time(), 3) - self.time_mutation
                     successfull_mutations_list.append(self.list_mutations[i])
                     successfull_mutations_list.append('Index: %s' % i)
-                    successfull_mutations_list.append('Index: %s' % self.qualified_name)
+                    successfull_mutations_list.append('Name: %s' % self.qualified_name)
+                    successfull_mutations_list.append('Time: %s' % round(self.time_mutation, 3))
                     self.stop_mutations()
-
+                    
 
     def encode(self, value, mutation_context):
         return value
@@ -223,27 +228,35 @@ def main():
             RandomStringRange(
                 "RSRTest1", 
                 default_value='none', 
-                start_str='oem device-in', 
+                start_str='oem device-inaa', 
                 final_str='oem device-info', 
-                max_mutations=2000, 
+                max_mutations=1000, 
                 expected_string_list=['oem device-info']
                 ),
             RandomStringRange(
                 "RSRTest2", 
                 default_value='none', 
-                start_str='getvar:varaaaa', 
-                final_str='getvar:product', 
-                max_mutations=2000, 
-                expected_string_list=['getvar:version', 'getvar:variant', 'getvar:product']
+                start_str='getvar:cac', 
+                final_str='getvar:zzzzzzz', 
+                max_mutations=1000, 
+                expected_string_list=['getvar:version', 'getvar:variant', 'getvar:product', 'getvar:secure', 'getvar:token', 'getvar:crc']
                 ),
             RandomStringRange(
                 "RSRTest3",
                 default_value='none',
-                start_str='reb',
+                start_str='reboaa',
                 final_str='reboot',
                 max_mutations=1000,
                 expected_string_list=['reboot']
-            )
+                ),
+            RandomStringRange(
+                "RSRTest4",
+                default_value='none',
+                start_str='aaaoot-bootloader',
+                final_str='zzzoot-bootloader',
+                max_mutations=1000,
+                expected_string_list=['reboot-bootloader']
+                )
             ))
         ))
 
@@ -268,6 +281,7 @@ def main():
         print('Created class object FastbootProtocol')
 
         mutations_all = 0
+        total_time = round(time.time(), 3)
 
         for mut in req.mutations('none'):
             mutations_all += 1
@@ -280,16 +294,24 @@ def main():
                 pucket.CreatePucket()
                 
                 print('Pucket command bytes: %s' % pucket.GetCommandBytes())
+                try:
+                    protocol._Write(pucket.GetBufferedCommand(), len(pucket.GetCommand()))
+                except usb_exceptions.WriteFailedError as err:
+                    print('Error: %s' % err)
+                    total_time = round(time.time(), 3) - total_time
+                    print('Amount of all mutatuions: %s' % mutations_all)
+                    print('All time: %s' % round(total_time, 3))
+                    print(successfull_mutations_list)
+                    return
+                else:
+                    protocol.HandleSimpleResponses()
+                    #protocol._AcceptResponses(b'OKAY', info_cb)
 
-                protocol._Write(pucket.GetBufferedCommand(), len(pucket.GetCommand()))
-                
-                protocol.HandleSimpleResponses()
-                #protocol._AcceptResponses(b'OKAY', info_cb)
-
-                print(protocol.GetLastResponce())
-                #print('Accepted response')
-
+                    print(protocol.GetLastResponce())
+                    #print('Accepted response')
+        total_time = round(time.time(), 3) - total_time
         print('Amount of all mutatuions: %s' % mutations_all)
+        print('All time: %s' % round(total_time, 3))
         print(successfull_mutations_list)
         
 
