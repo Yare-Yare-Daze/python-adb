@@ -205,6 +205,7 @@ class RandomStringRange(Fuzzable):
                     print('Stopped on %s index' % i)
                     self.time_mutation = round(time.time(), 3) - self.time_mutation
                     successfull_mutations_list.append(self.list_mutations[i])
+                    successfull_mutations_list.append('Responce: %s' % fastboot.GetLastResponce())
                     successfull_mutations_list.append('Index: %s' % i)
                     successfull_mutations_list.append('Name: %s' % self.qualified_name)
                     successfull_mutations_list.append('Time: %s' % round(self.time_mutation, 3))
@@ -228,57 +229,89 @@ class RandomStringRange(Fuzzable):
         return self.max_mutations
 
 def main():
-    # pucket = GeneratePucketFromInput()
-    # if pucket.GetCommand() == 'help' or pucket.GetCommand() == 'h':
-    #     print(getHelp())
-    #     return
     
     dev = fastboot.FastbootCommands()
     req = Request("Mutation-Getvar",children=(
             Block("Request-Line", children=(
-            #Group("Getvar-Args", values=l),
-            #RandomStringRange("RSRTEST", default_value='none', start_str='aaa', final_str='zzz', max_mutations=100, expected_string_list=['crc']),
             RandomStringRange(
                 "RSRTest1", 
                 default_value='none', 
-                start_str='oek', 
-                final_str='oeo', 
-                max_mutations=200, 
-                expected_string_list=['oel'],
-                avoid_string_list=['oem', 'oek', 'oeo']
+                start_str='oem device-iaaa', 
+                final_str='oem device-izzz', 
+                max_mutations=2500, 
+                expected_string_list=['oem device-info'],
+                avoid_string_list=['oem device-iaaa', 'oem device-izzz']
                 ),
             # RandomStringRange(
             #     "RSRTest2", 
             #     default_value='none', 
-            #     start_str='getvar:cac', 
-            #     final_str='getvar:zzzzzzz', 
-            #     max_mutations=2500, 
-            #     expected_string_list=['getvar:version', 'getvar:variant', 'getvar:product', 'getvar:secure', 'getvar:token', 'getvar:crc']
+            #     start_str='oem unlaaa', 
+            #     final_str='oem unlzzz', 
+            #     max_mutations=1500, 
+            #     expected_string_list=['oem unlock'],
+            #     avoid_string_list=['oem unlaaa', 'oem unlzzz']
             #     ),
             # RandomStringRange(
-            #     "RSRTest3",
-            #     default_value='none',
-            #     start_str='aaaoot-bootloader',
-            #     final_str='zzzoot-bootloader',
-            #     max_mutations=1500,
-            #     expected_string_list=['reboot-bootloader']
+            #     "RSRTest3", 
+            #     default_value='none', 
+            #     start_str='oem laaa', 
+            #     final_str='oem lzzz', 
+            #     max_mutations=1500, 
+            #     expected_string_list=['oem lock'],
+            #     avoid_string_list=['oem laaa', 'oem lzzz']
             #     ),
+            RandomStringRange(
+                "RSRTest4", 
+                default_value='none', 
+                start_str='getvar:caa', 
+                final_str='getvar:czz', 
+                max_mutations=2500, 
+                expected_string_list=['getvar:version', 'getvar:variant', 'getvar:product', 'getvar:secure', 'getvar:token', 'getvar:crc']
+                ),
+            RandomStringRange(
+                "RSRTest0", 
+                default_value='none', 
+                start_str='getvar:a', 
+                final_str='getvar:zzzzzzzz', 
+                max_mutations=2500, 
+                expected_string_list=['getvar:version', 'getvar:variant', 'getvar:product', 'getvar:secure', 'getvar:token']
+                ),
+            RandomStringRange(
+                "RSRTest5",
+                default_value='none',
+                start_str='aaaoot-bootloader',
+                final_str='zzzoot-bootloader',
+                max_mutations=2500,
+                expected_string_list=['reboot-bootloader']
+                ),
+            RandomStringRange(
+                "RSRTest6",
+                default_value='none',
+                start_str='rebaaa',
+                final_str='rebzzz',
+                max_mutations=2500,
+                expected_string_list=['reboot']
+                ),
+            RandomStringRange(
+                "RSRTest7",
+                default_value='none',
+                start_str='getvar:a',
+                final_str='getvar:azz',
+                max_mutations=2500,
+                expected_string_list=['getvar:all']
+                ),
             # RandomStringRange(
-            #     "RSRTest4",
+            #     "RSRTest7",
             #     default_value='none',
-            #     start_str='rebaaa',
-            #     final_str='rebzzz',
+            #     start_str='a',
+            #     final_str='zzzzzzzz',
             #     max_mutations=1500,
-            #     expected_string_list=['reboot']
+            #     expected_string_list=['getvar', 'reboot', 'oem'],
+            #     avoid_string_list=['continue', 'flash', 'erase', 'download', 'flashall']
             #     ),
             ))
         ))
 
-    # for mut in req.get_mutations():
-    #     print(mut)
-    #     for mutt in mut:
-    #         tuple = mutt.value.partition(b':')
-    
     for device in dev.Devices():
         
         print('Serial number: %s' % device.serial_number)
@@ -304,31 +337,31 @@ def main():
                 tuple = mutt.value.partition(b':')
                 pucket = FastbootCommand(tuple[0].decode('utf-8'), tuple[2].decode('utf-8'))
                 #pucket = FastbootCommand(mutt.value.decode('utf-8'))
-                #pucket = FastbootCommand('getvar', mutt.value.decode('utf-8'))
                 pucket.CreatePucket()
                 
                 print('Pucket command bytes: %s' % pucket.GetCommandBytes())
                 try:
                     protocol._Write(pucket.GetBufferedCommand(), len(pucket.GetCommand()))
                 except usb_exceptions.WriteFailedError as err:
-                    print('Error: %s' % err)
                     total_time = round(time.time(), 3) - total_time
-                    print('Amount of all mutatuions: %s' % amount_sended_mutations)
+                    print('Error: %s' % err)
+                    print('Amount of sended mutatuions: %s' % amount_sended_mutations)
+                    print('Anount of avoided mutations: %s' % amount_avoided_mutations)
+                    print('Amount of all mutations %s' % str(amount_sended_mutations + amount_avoided_mutations))
                     print('All time: %s' % round(total_time, 3))
+                    print('Expected mutations list (empty if not catched any expected string):')
                     print(successfull_mutations_list)
                     return
                 else:
-                    protocol.HandleSimpleResponses()
-                    #protocol._AcceptResponses(b'OKAY', info_cb)
-
-                    print(protocol.GetLastResponce())
-                    #print('Accepted response')
+                    print(protocol.HandleSimpleResponses())
+                    #print(protocol._AcceptResponses(b'OKAY', info_cb))
 
         total_time = round(time.time(), 3) - total_time
         print('Amount of sended mutatuions: %s' % amount_sended_mutations)
         print('Anount of avoided mutations: %s' % amount_avoided_mutations)
         print('Amount of all mutations %s' % str(amount_sended_mutations + amount_avoided_mutations))
         print('All time: %s' % round(total_time, 3))
+        print('Expected mutations list (empty if not catched any expected string):')
         print(successfull_mutations_list)
 
 if __name__ == '__main__':

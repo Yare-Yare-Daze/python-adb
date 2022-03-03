@@ -71,7 +71,6 @@ class FastbootProtocol(object):
         """
         self.usb = usb
         self.chunk_kb = chunk_kb
-        self.lastResponce = b''
 
     @property
     def usb_handle(self):
@@ -156,7 +155,8 @@ class FastbootProtocol(object):
         """
         while True:
             response = self.usb.BulkRead(64, timeout_ms=timeout_ms)
-            self.lastResponce = response
+            global lastResponce
+            lastResponce = response
             header = bytes(response[:4])
             remaining = bytes(response[4:])
 
@@ -168,17 +168,14 @@ class FastbootProtocol(object):
                         'Expected %s, got %s', expected_header, header)
                 if header == b'OKAY':
                     info_cb(FastbootMessage(remaining, header))
-                return remaining
+                return response
             elif header == b'FAIL':
                 info_cb(FastbootMessage(remaining, header))
-                return remaining
+                return response
                 #raise FastbootRemoteFailure('FAIL: %s', remaining)
             else:
                 raise FastbootInvalidResponse(
                     'Got unknown header %s and response %s', header, remaining)
-
-    def GetLastResponce(self):
-        return self.lastResponce
 
     def _HandleProgress(self, total, progress_callback):
         """Calls the callback with the current progress and total ."""
@@ -205,6 +202,8 @@ class FastbootProtocol(object):
             if progress_callback and progress:
                 progress.send(len(tmp))
 
+def GetLastResponce():
+        return lastResponce
 
 class FastbootCommands(object):
     """Encapsulates the fastboot commands."""
