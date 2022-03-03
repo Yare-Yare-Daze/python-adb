@@ -126,6 +126,7 @@ def GeneratePucketFromInput():
     return fstcmd
 
 class RandomStringRange(Fuzzable):
+
     @staticmethod
     def CreateStringsListRange(start, final, amount_iterations):
         random = Random()
@@ -154,16 +155,15 @@ class RandomStringRange(Fuzzable):
         return list
 
     def __init__(
-    self, name=None, default_value="", start_str='aaa', final_str='zzz', max_mutations=100, expected_string_list=['aaa'], *args, **kwargs
+    self, name=None, default_value="", start_str='aaa', final_str='zzz', max_mutations=100, expected_string_list=['aaa'], avoid_string_list=['flash'], *args, **kwargs
     ):
         default_value = helpers.str_to_bytes(default_value)
 
         super(RandomStringRange, self).__init__(name=name, default_value=default_value, *args, **kwargs)
 
         self.list_mutations = self.CreateStringsListRange(start_str, final_str, max_mutations)
-        #self.counter_expected_string = 0
         self.expected_string_list = expected_string_list
-        self.amount_mutation = 0
+        self.avoid_string_list = avoid_string_list
         self.max_mutations = max_mutations
         self.start_str = start_str
         self.final_str = final_str
@@ -178,15 +178,28 @@ class RandomStringRange(Fuzzable):
         Yields:
             str: Mutations
         """
+        global amount_avoided_mutations
+        amount_avoided_mutations = 0
+
         self.time_mutation = round(time.time(), 3)
         for i in range(0, self.get_num_mutations()):
             value = b""
-            self.amount_mutation += 1
+            self.need_avoid_mutation = False
+            
+            for j in range(0, len(self.avoid_string_list)):
+                if(self.list_mutations[i] == self.avoid_string_list[j]):
+                    print("avoided: %s" % self.list_mutations[i])
+                    self.need_avoid_mutation = True
+
+            if self.need_avoid_mutation:
+                amount_avoided_mutations += 1
+                continue
+
             value += bytes(self.list_mutations[i], encoding="utf-8")
             yield value
+
             for j in range(0, len(self.expected_string_list)):
                 if self.list_mutations[i] == self.expected_string_list[j]:
-                    #self.counter_expected_string += 1
                     print('Finded expected string: %s' % self.expected_string_list[j])
                     print('Qualified name: %s' % self.qualified_name)
                     print('Stopped on %s index' % i)
@@ -228,35 +241,36 @@ def main():
             RandomStringRange(
                 "RSRTest1", 
                 default_value='none', 
-                start_str='oem device-inaa', 
-                final_str='oem device-info', 
-                max_mutations=1000, 
-                expected_string_list=['oem device-info']
+                start_str='oek', 
+                final_str='oeo', 
+                max_mutations=200, 
+                expected_string_list=['oel'],
+                avoid_string_list=['oem', 'oek', 'oeo']
                 ),
-            RandomStringRange(
-                "RSRTest2", 
-                default_value='none', 
-                start_str='getvar:cac', 
-                final_str='getvar:zzzzzzz', 
-                max_mutations=1000, 
-                expected_string_list=['getvar:version', 'getvar:variant', 'getvar:product', 'getvar:secure', 'getvar:token', 'getvar:crc']
-                ),
-            RandomStringRange(
-                "RSRTest3",
-                default_value='none',
-                start_str='reboaa',
-                final_str='reboot',
-                max_mutations=1000,
-                expected_string_list=['reboot']
-                ),
-            RandomStringRange(
-                "RSRTest4",
-                default_value='none',
-                start_str='aaaoot-bootloader',
-                final_str='zzzoot-bootloader',
-                max_mutations=1000,
-                expected_string_list=['reboot-bootloader']
-                )
+            # RandomStringRange(
+            #     "RSRTest2", 
+            #     default_value='none', 
+            #     start_str='getvar:cac', 
+            #     final_str='getvar:zzzzzzz', 
+            #     max_mutations=2500, 
+            #     expected_string_list=['getvar:version', 'getvar:variant', 'getvar:product', 'getvar:secure', 'getvar:token', 'getvar:crc']
+            #     ),
+            # RandomStringRange(
+            #     "RSRTest3",
+            #     default_value='none',
+            #     start_str='aaaoot-bootloader',
+            #     final_str='zzzoot-bootloader',
+            #     max_mutations=1500,
+            #     expected_string_list=['reboot-bootloader']
+            #     ),
+            # RandomStringRange(
+            #     "RSRTest4",
+            #     default_value='none',
+            #     start_str='rebaaa',
+            #     final_str='rebzzz',
+            #     max_mutations=1500,
+            #     expected_string_list=['reboot']
+            #     ),
             ))
         ))
 
@@ -266,7 +280,7 @@ def main():
     #         tuple = mutt.value.partition(b':')
     
     for device in dev.Devices():
-
+        
         print('Serial number: %s' % device.serial_number)
         print('Port puth: %s' %device.port_path)
         print('Usb_info: %s' %device.usb_info)
@@ -279,12 +293,12 @@ def main():
 
         protocol = fastboot.FastbootProtocol(device)
         print('Created class object FastbootProtocol')
-
-        mutations_all = 0
+    
+        amount_sended_mutations = 0
         total_time = round(time.time(), 3)
 
         for mut in req.mutations('none'):
-            mutations_all += 1
+            amount_sended_mutations += 1
 
             for mutt in mut:
                 tuple = mutt.value.partition(b':')
@@ -299,7 +313,7 @@ def main():
                 except usb_exceptions.WriteFailedError as err:
                     print('Error: %s' % err)
                     total_time = round(time.time(), 3) - total_time
-                    print('Amount of all mutatuions: %s' % mutations_all)
+                    print('Amount of all mutatuions: %s' % amount_sended_mutations)
                     print('All time: %s' % round(total_time, 3))
                     print(successfull_mutations_list)
                     return
@@ -309,11 +323,13 @@ def main():
 
                     print(protocol.GetLastResponce())
                     #print('Accepted response')
+
         total_time = round(time.time(), 3) - total_time
-        print('Amount of all mutatuions: %s' % mutations_all)
+        print('Amount of sended mutatuions: %s' % amount_sended_mutations)
+        print('Anount of avoided mutations: %s' % amount_avoided_mutations)
+        print('Amount of all mutations %s' % str(amount_sended_mutations + amount_avoided_mutations))
         print('All time: %s' % round(total_time, 3))
         print(successfull_mutations_list)
-        
 
 if __name__ == '__main__':
     sys.exit(main())
